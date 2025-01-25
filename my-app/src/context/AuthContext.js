@@ -48,7 +48,7 @@ export function AuthProvider({children}) {
                     setUser(null);
                     router.replace('/');
                 }
-            }, 14 * 1000);
+            }, 4.5 * 60 * 1000);
         }
 
         return () => {

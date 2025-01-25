@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { Toaster, toast } from 'react-hot-toast';
 import './apply.css';
 
 function ApplyForm() {
@@ -84,11 +85,11 @@ function ApplyForm() {
         throw new Error(data.error || 'Failed to submit application');
       }
 
-      alert(`Application submitted successfully! Your User ID is: ${data.userId}`);
+      toast.success(`Application submitted successfully! Your User ID is: ${data.userId}`);
       router.push('/dashboard?success=true');
     } catch (error) {
       console.error('Error submitting application:', error);
-      alert('Failed to submit application. Please try again.');
+      toast.error('Failed to submit application. Please try again.');
     }
   };
 
@@ -106,6 +107,31 @@ function ApplyForm() {
 
   return (
     <div className="apply-container">
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          duration: 5000,
+          style: {
+            background: '#333',
+            color: '#fff',
+            padding: '16px',
+            borderRadius: '8px',
+            fontSize: '14px'
+          },
+          success: {
+            iconTheme: {
+              primary: '#10B981',
+              secondary: 'white',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#EF4444',
+              secondary: 'white',
+            },
+          },
+        }}
+      />
       <div className="apply-header">
         <div className="job-overview">
           <div className="company-logo">
