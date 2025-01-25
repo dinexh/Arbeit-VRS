@@ -10,12 +10,36 @@ function ApplyForm() {
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
+  const [resumes, setResumes] = useState([]);
+  const [selectedResume, setSelectedResume] = useState(null);
 
   useEffect(() => {
     if (jobId) {
       fetchJobDetails();
+      fetchUserData();
     }
   }, [jobId]);
+
+  const fetchUserData = async () => {
+    try {
+      // Fetch user profile
+      const profileResponse = await fetch('/api/profile');
+      if (profileResponse.ok) {
+        const profileData = await profileResponse.json();
+        setUserProfile(profileData);
+      }
+
+      // Fetch user's resumes
+      const resumesResponse = await fetch('/api/profile/resume');
+      if (resumesResponse.ok) {
+        const resumesData = await resumesResponse.json();
+        setResumes(resumesData);
+      }
+    } catch (err) {
+      console.error('Error fetching user data:', err);
+    }
+  };
 
   const fetchJobDetails = async () => {
     try {
@@ -44,10 +68,15 @@ function ApplyForm() {
     const formData = new FormData(e.target);
     formData.append('jobId', jobId);
 
+    // If a saved resume is selected, use its ID
+    if (selectedResume) {
+      formData.append('resumeId', selectedResume);
+    }
+
     try {
       const response = await fetch('/api/applications', {
         method: 'POST',
-        body: formData // Send as FormData instead of JSON
+        body: formData
       });
 
       const data = await response.json();
@@ -55,7 +84,6 @@ function ApplyForm() {
         throw new Error(data.error || 'Failed to submit application');
       }
 
-      // Show success message with user ID
       alert(`Application submitted successfully! Your User ID is: ${data.userId}`);
       router.push('/dashboard?success=true');
     } catch (error) {
@@ -149,23 +177,67 @@ function ApplyForm() {
             <form className="apply-form" onSubmit={handleSubmit}>
               <div className="form-group">
                 <label htmlFor="fullName">Full Name</label>
-                <input type="text" id="fullName" name="fullName" required />
+                <input 
+                  type="text" 
+                  id="fullName" 
+                  name="fullName" 
+                  required 
+                  defaultValue={userProfile?.fullName || ''}
+                />
               </div>
               
               <div className="form-group">
                 <label htmlFor="email">Email</label>
-                <input type="email" id="email" name="email" required />
+                <input 
+                  type="email" 
+                  id="email" 
+                  name="email" 
+                  required 
+                  defaultValue={userProfile?.email || ''}
+                  readOnly
+                />
               </div>
               
               <div className="form-group">
                 <label htmlFor="phone">Phone</label>
-                <input type="tel" id="phone" name="phone" required />
+                <input 
+                  type="tel" 
+                  id="phone" 
+                  name="phone" 
+                  required 
+                  defaultValue={userProfile?.phone || ''}
+                />
               </div>
               
               <div className="form-group">
-                <label htmlFor="resume">Resume</label>
-                <input type="file" id="resume" name="resume" accept=".pdf,.doc,.docx" required />
+                <label htmlFor="resumeSelect">Select Resume</label>
+                <select 
+                  id="resumeSelect" 
+                  name="resumeSelect"
+                  value={selectedResume || ''}
+                  onChange={(e) => setSelectedResume(e.target.value)}
+                >
+                  <option value="">Upload New Resume</option>
+                  {resumes.map((resume) => (
+                    <option key={resume._id} value={resume._id}>
+                      {resume.metadata.originalName}
+                    </option>
+                  ))}
+                </select>
               </div>
+
+              {!selectedResume && (
+                <div className="form-group">
+                  <label htmlFor="resume">Upload Resume</label>
+                  <input 
+                    type="file" 
+                    id="resume" 
+                    name="resume" 
+                    accept=".pdf,.doc,.docx" 
+                    required={!selectedResume}
+                  />
+                </div>
+              )}
               
               <div className="form-group">
                 <label htmlFor="coverLetter">Cover Letter (Optional)</label>

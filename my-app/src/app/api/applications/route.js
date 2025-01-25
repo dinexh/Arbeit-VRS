@@ -29,24 +29,36 @@ export async function POST(request) {
     const phone = formData.get('phone');
     const coverLetter = formData.get('coverLetter');
     const resume = formData.get('resume');
+    const resumeId = formData.get('resumeId');
 
     // Generate a unique 3-digit user ID
     const userId = await generateUniqueUserId(db);
     
-    // Store resume in GridFS if provided
-    let resumeId = null;
-    if (resume) {
-      const bucket = new GridFSBucket(db);
-      const uploadStream = bucket.openUploadStream(`${userId}_resume.pdf`);
-      const buffer = Buffer.from(await resume.arrayBuffer());
+    // Handle resume - either use existing one or upload new one
+    let finalResumeId = null;
+    if (resumeId) {
+      // Use existing resume
+      finalResumeId = new ObjectId(resumeId);
+    } else if (resume) {
+      // Upload new resume
+      const bucket = new GridFSBucket(db, { bucketName: 'resumes' });
+      const uploadStream = bucket.openUploadStream(`${userId}_resume.pdf`, {
+        metadata: {
+          userEmail: email,
+          originalName: resume.name,
+          uploadDate: new Date(),
+          contentType: resume.type
+        }
+      });
       
+      const buffer = Buffer.from(await resume.arrayBuffer());
       await new Promise((resolve, reject) => {
         uploadStream.end(buffer, (error) => {
           if (error) reject(error);
           else resolve();
         });
-        resumeId = uploadStream.id;
       });
+      finalResumeId = uploadStream.id;
     }
 
     const application = {
@@ -56,7 +68,7 @@ export async function POST(request) {
       email,
       phone,
       coverLetter,
-      resumeId, // Store the GridFS file ID
+      resumeId: finalResumeId,
       status: 'Pending',
       appliedDate: new Date()
     };
@@ -92,7 +104,7 @@ export async function GET() {
 
     return NextResponse.json(applications);
   } catch (error) {
-    console.error('Error fetching applications:', error);
+    console.error('Error in GET applications:', error);
     return NextResponse.json(
       { error: 'Failed to fetch applications' },
       { status: 500 }
@@ -120,7 +132,7 @@ export async function PUT(request) {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Error updating application:', error);
+    console.error('Error in PUT applications:', error);
     return NextResponse.json(
       { error: 'Failed to update application' },
       { status: 500 }

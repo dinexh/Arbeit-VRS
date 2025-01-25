@@ -52,6 +52,7 @@ const ProfilePage = () => {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newSkill, setNewSkill] = useState('');
+  const [resumes, setResumes] = useState([]);
 
   // Predefined options for skills and technologies
   const commonSkills = {
@@ -147,18 +148,79 @@ const ProfilePage = () => {
     }));
   };
 
-  const handleSkillAdd = (category) => {
+  const handleSkillAdd = async (category) => {
     if (newSkill && !userProfile[category].includes(newSkill)) {
-      handleArrayInputChange(category, [...userProfile[category], newSkill]);
+      const updatedSkills = [...userProfile[category], newSkill];
+      handleArrayInputChange(category, updatedSkills);
       setNewSkill('');
+
+      // Auto-save when skills are updated
+      const { email, currentPassword, newPassword, confirmPassword, ...otherData } = userProfile;
+      const profileData = {
+        ...otherData,
+        [category]: updatedSkills,
+        languages: category === 'languages' ? updatedSkills : userProfile.languages || [],
+        frameworks: category === 'frameworks' ? updatedSkills : userProfile.frameworks || [],
+        databases: category === 'databases' ? updatedSkills : userProfile.databases || [],
+        tools: category === 'tools' ? updatedSkills : userProfile.tools || []
+      };
+
+      try {
+        const response = await fetch('/api/profile', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify(profileData)
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || 'Failed to update skills');
+        }
+        toast.success('Skills updated successfully!');
+      } catch (error) {
+        console.error('Error updating skills:', error);
+        toast.error('Failed to update skills');
+      }
     }
   };
 
-  const handleSkillRemove = (category, skill) => {
-    handleArrayInputChange(
-      category,
-      userProfile[category].filter(s => s !== skill)
-    );
+  const handleSkillRemove = async (category, skill) => {
+    const updatedSkills = userProfile[category].filter(s => s !== skill);
+    handleArrayInputChange(category, updatedSkills);
+
+    // Auto-save when skills are removed
+    const { email, currentPassword, newPassword, confirmPassword, ...otherData } = userProfile;
+    const profileData = {
+      ...otherData,
+      [category]: updatedSkills,
+      languages: category === 'languages' ? updatedSkills : userProfile.languages || [],
+      frameworks: category === 'frameworks' ? updatedSkills : userProfile.frameworks || [],
+      databases: category === 'databases' ? updatedSkills : userProfile.databases || [],
+      tools: category === 'tools' ? updatedSkills : userProfile.tools || []
+    };
+
+    try {
+      const response = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify(profileData)
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to update skills');
+      }
+      toast.success('Skills updated successfully!');
+    } catch (error) {
+      console.error('Error updating skills:', error);
+      toast.error('Failed to update skills');
+    }
   };
 
   const handlePasswordChange = async (e) => {
@@ -238,8 +300,17 @@ const ProfilePage = () => {
       return;
     }
     
-    // Remove sensitive fields
-    const { email, currentPassword, newPassword, confirmPassword, ...profileData } = userProfile;
+    // Remove sensitive fields but keep skills arrays
+    const { email, currentPassword, newPassword, confirmPassword, languages, frameworks, databases, tools, ...otherData } = userProfile;
+
+    // Prepare the complete profile data including skills
+    const profileData = {
+      ...otherData,
+      languages: languages || [],
+      frameworks: frameworks || [],
+      databases: databases || [],
+      tools: tools || []
+    };
 
     try {
       const updatePromise = fetch('/api/profile', {
@@ -247,7 +318,7 @@ const ProfilePage = () => {
         headers: {
           'Content-Type': 'application/json'
         },
-        credentials: 'include', // Include cookies in the request
+        credentials: 'include',
         body: JSON.stringify(profileData)
       });
 
@@ -282,6 +353,84 @@ const ProfilePage = () => {
       console.error('Error updating profile:', error);
     }
   };
+
+  const handleResumeUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
+      toast.error('Please upload a PDF file');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('resume', file);
+
+    try {
+      const response = await fetch('/api/profile/resume', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to upload resume');
+      }
+
+      const data = await response.json();
+      toast.success('Resume uploaded successfully!');
+      
+      // Refresh resumes list
+      const resumesResponse = await fetch('/api/profile/resume');
+      if (resumesResponse.ok) {
+        const resumesData = await resumesResponse.json();
+        setResumes(resumesData);
+      }
+    } catch (error) {
+      console.error('Error uploading resume:', error);
+      toast.error('Failed to upload resume');
+    }
+  };
+
+  const handleResumeDelete = async (resumeId) => {
+    try {
+      const response = await fetch(`/api/profile/resume/${resumeId}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to delete resume');
+      }
+
+      toast.success('Resume deleted successfully!');
+      
+      // Update resumes list
+      setResumes(prev => prev.filter(resume => resume._id !== resumeId));
+    } catch (error) {
+      console.error('Error deleting resume:', error);
+      toast.error('Failed to delete resume');
+    }
+  };
+
+  // Fetch resumes when component mounts
+  useEffect(() => {
+    const fetchResumes = async () => {
+      try {
+        const response = await fetch('/api/profile/resume');
+        if (response.ok) {
+          const data = await response.json();
+          setResumes(data);
+        }
+      } catch (error) {
+        console.error('Error fetching resumes:', error);
+      }
+    };
+
+    if (user?.email) {
+      fetchResumes();
+    }
+  }, [user?.email]);
 
   if (isLoading) {
     return <div className="loading-spinner" />;
@@ -599,32 +748,49 @@ const ProfilePage = () => {
               <section className="resumes-section">
                 <h2>My Resumes</h2>
                 <div className="resume-upload">
-                  <input type="file" id="resume" accept=".pdf" className="hidden" />
+                  <input 
+                    type="file" 
+                    id="resume" 
+                    accept=".pdf" 
+                    className="hidden"
+                    onChange={handleResumeUpload}
+                  />
                   <label htmlFor="resume">
                     <div className="upload-area">
                       <i className="fas fa-cloud-upload-alt"></i>
                       <p>Click to upload or drag and drop</p>
                       <span>PDF files only</span>
-                </div>
+                    </div>
                   </label>
                 </div>
-                {applications.filter(app => app.resumeId).map((app) => (
-                  <div key={app._id} className="resume-item">
-                    <span>Resume for Job #{app.jobId}</span>
-                    <div className="resume-actions">
-                      <a 
-                        href={`/api/applications/${app._id}/resume`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="view-btn"
-                      >
-                        View
-                      </a>
-                      <button className="delete-btn">Delete</button>
-                </div>
-              </div>
-                ))}
-            </section>
+                {resumes.length > 0 ? (
+                  <div className="resumes-list">
+                    {resumes.map((resume) => (
+                      <div key={resume._id} className="resume-item">
+                        <span>{resume.filename}</span>
+                        <div className="resume-actions">
+                          <a 
+                            href={`/api/profile/resume/${resume._id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="view-btn"
+                          >
+                            View
+                          </a>
+                          <button 
+                            className="delete-btn"
+                            onClick={() => handleResumeDelete(resume._id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="no-resumes">No resumes uploaded yet.</p>
+                )}
+              </section>
             )}
 
             {activeSection === 'password' && (

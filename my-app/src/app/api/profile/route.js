@@ -1,4 +1,4 @@
-import { connect, disconnect } from '../../../config/db';
+import { connect } from '../../../config/db';
 import { cookies } from 'next/headers';
 import { verifyAccessToken } from '../../../config/jwt';
 
@@ -16,7 +16,7 @@ export async function GET(request) {
         }
 
         const decoded = verifyAccessToken(accessToken.value);
-        if (!decoded.username) {
+        if (!decoded.email) {
             return new Response(JSON.stringify({ error: 'Invalid token' }), {
                 status: 401,
                 headers: { 'Content-Type': 'application/json' }
@@ -25,7 +25,7 @@ export async function GET(request) {
 
         const db = await connect();
         const user = await db.collection('users').findOne(
-            { email: decoded.username },
+            { email: decoded.email },
             { projection: { Password: 0 } }
         );
 
@@ -41,13 +41,11 @@ export async function GET(request) {
             headers: { 'Content-Type': 'application/json' }
         });
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error in GET profile:', error);
         return new Response(JSON.stringify({ error: 'Internal server error' }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
         });
-    } finally {
-        await disconnect();
     }
 }
 
@@ -65,7 +63,7 @@ export async function PUT(request) {
         }
 
         const decoded = verifyAccessToken(accessToken.value);
-        if (!decoded.username) {
+        if (!decoded.email) {
             return new Response(JSON.stringify({ error: 'Invalid token' }), {
                 status: 401,
                 headers: { 'Content-Type': 'application/json' }
@@ -74,12 +72,12 @@ export async function PUT(request) {
 
         const profileData = await request.json();
         
-        // Remove sensitive fields
-        const { Password, email, role, ...updateData } = profileData;
+        // Remove sensitive and immutable fields
+        const { Password, email, role, _id, ...updateData } = profileData;
 
         const db = await connect();
         const result = await db.collection('users').updateOne(
-            { email: decoded.username },
+            { email: decoded.email },
             { 
                 $set: {
                     ...updateData,
@@ -102,12 +100,10 @@ export async function PUT(request) {
             headers: { 'Content-Type': 'application/json' }
         });
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error in PUT profile:', error);
         return new Response(JSON.stringify({ error: 'Internal server error' }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
         });
-    } finally {
-        await disconnect();
     }
 } 

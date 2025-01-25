@@ -27,7 +27,7 @@ export async function POST(request) {
         }
         
         const { accessToken, refreshToken } = generateAuthTokens({ 
-            username: email,
+            email: email,
             role: existingUser.role || 'user'  // Default to 'user' if role not set
         });
         
