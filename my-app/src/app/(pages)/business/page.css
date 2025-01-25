@@ -9,9 +9,11 @@
 
 .dashboard-container {
   padding: 2rem;
-  max-width: 1400px;
+  max-width: 2000px;
+  /* width: 100%; */
   margin: 0 auto;
   background: var(--background);
+  border-radius: 2rem;
 }
 
 .dashboard-header {
@@ -996,6 +998,7 @@ tr:last-child td {
 }
 
 .business-page {
+  width: 100%;
   min-height: 100vh;
   background-color: #f3f4f6;
 }

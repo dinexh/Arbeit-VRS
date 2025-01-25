@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import LogoutButton from '@/components/LogoutButton';
 import './page.css';
+import { Toaster, toast } from 'react-hot-toast';
 
 export default function BusinessDashboard() {
   const [activeTab, setActiveTab] = useState('jobs');
@@ -100,14 +101,23 @@ export default function BusinessDashboard() {
     try {
       setLoading(true);
       const response = await fetch('/api/business/jobs');
+      
       if (!response.ok) {
-        throw new Error('Failed to fetch jobs');
+        const errorData = await response.json();
+        if (response.status === 401) {
+          // Unauthorized - redirect to login
+          window.location.href = '/Bauth';
+          return;
+        }
+        throw new Error(errorData.error || 'Failed to fetch jobs');
       }
+      
       const data = await response.json();
       setJobs(data);
     } catch (err) {
       setError(err.message);
       console.error('Error fetching jobs:', err);
+      toast.error(`Failed to fetch jobs: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -116,25 +126,44 @@ export default function BusinessDashboard() {
   const fetchApplications = async () => {
     try {
       const response = await fetch('/api/applications');
+      
       if (!response.ok) {
-        throw new Error('Failed to fetch applications');
+        const errorData = await response.json();
+        if (response.status === 401) {
+          // Unauthorized - redirect to login
+          window.location.href = '/Bauth';
+          return;
+        }
+        throw new Error(errorData.error || 'Failed to fetch applications');
       }
+      
       const data = await response.json();
       setApplications(data);
     } catch (err) {
       console.error('Error fetching applications:', err);
+      toast.error(`Failed to fetch applications: ${err.message}`);
     }
   };
 
   const fetchCompanyInfo = async () => {
     try {
       const response = await fetch('/api/business/profile');
-      if (response.ok) {
-        const data = await response.json();
-        setCompanyEmail(data.companyEmail);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        if (response.status === 401) {
+          // Unauthorized - redirect to login
+          window.location.href = '/Bauth';
+          return;
+        }
+        throw new Error(errorData.error || 'Failed to fetch company info');
       }
+      
+      const data = await response.json();
+      setCompanyEmail(data.companyEmail);
     } catch (err) {
       console.error('Error fetching company info:', err);
+      toast.error(`Failed to fetch company info: ${err.message}`);
     }
   };
 
@@ -192,9 +221,10 @@ export default function BusinessDashboard() {
         qualification: '',
         additionalInfo: '',
       });
+      toast.success('Job posted successfully');
     } catch (err) {
       console.error('Error creating job:', err);
-      alert('Failed to create job. Please try again.');
+      toast.error('Failed to create job. Please try again.');
     }
   };
 
@@ -213,9 +243,10 @@ export default function BusinessDashboard() {
       }
 
       setJobs(prev => prev.filter(job => job._id !== _id));
+      toast.success('Job deleted successfully');
     } catch (err) {
       console.error('Error deleting job:', err);
-      alert('Failed to delete job. Please try again.');
+      toast.error('Failed to delete job. Please try again.');
     }
   };
 
@@ -243,7 +274,7 @@ export default function BusinessDashboard() {
       setJobs(prev => prev.map(j => j._id === _id ? { ...j, ...updatedJob } : j));
     } catch (err) {
       console.error('Error updating job status:', err);
-      alert('Failed to update job status. Please try again.');
+      toast.error('Failed to update job status. Please try again.');
     }
   };
 
@@ -308,6 +339,7 @@ export default function BusinessDashboard() {
 
   const handleUpdateStatus = async (_id, status) => {
     try {
+      // First update the application status
       const response = await fetch('/api/applications', {
         method: 'PUT',
         headers: {
@@ -318,6 +350,32 @@ export default function BusinessDashboard() {
 
       if (!response.ok) {
         throw new Error('Failed to update application status');
+      }
+
+      // Get the job title from the jobs array using the jobId from selectedApplication
+      const job = jobs.find(j => j.jobId === selectedApplication.jobId);
+      const jobTitle = job ? job.title : selectedApplication.jobTitle || 'Unknown Position';
+
+      // Send email notification
+      const emailResponse = await fetch('/api/applications/email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          applicationId: _id,
+          status,
+          applicantName: selectedApplication.fullName,
+          applicantEmail: selectedApplication.email,
+          jobTitle
+        })
+      });
+
+      const emailData = await emailResponse.json();
+
+      if (!emailResponse.ok) {
+        console.error('Failed to send email notification:', emailData.error);
+        toast.error(`Failed to send email notification: ${emailData.error}`);
       }
 
       // Update the applications list
@@ -332,10 +390,10 @@ export default function BusinessDashboard() {
         setSelectedApplication(prev => ({ ...prev, status }));
       }
 
-      alert(`Application status updated to ${status}`);
+      toast.success(`Application status updated to ${status} and notification email sent`);
     } catch (error) {
       console.error('Error updating application status:', error);
-      alert('Failed to update application status');
+      toast.error(`Failed to update application status: ${error.message}`);
     }
   };
 
@@ -844,7 +902,7 @@ export default function BusinessDashboard() {
             </div>
             <div className="stat-card">
               <h3>Hired</h3>
-              <p className="stat-number">8</p>
+              <p className="stat-number">0</p>
               <p className="stat-trend neutral">= Same as last month</p>
             </div>
           </div>
@@ -1183,6 +1241,29 @@ export default function BusinessDashboard() {
           )}
         </div>
       </main>
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: 'var(--background)',
+            color: 'var(--text-color)',
+            border: '1px solid var(--border-color)',
+          },
+          success: {
+            iconTheme: {
+              primary: '#10B981',
+              secondary: 'white',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#EF4444',
+              secondary: 'white',
+            },
+          },
+        }}
+      />
     </div>
   );
 }

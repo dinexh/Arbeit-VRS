@@ -4,7 +4,7 @@ import { GridFSBucket, ObjectId } from 'mongodb';
 
 export async function GET(request, context) {
   try {
-    const id = context.params.id;
+    const id = await context.params.id;
     const db = await connect();
     const application = await db.collection('applications').findOne(
       { _id: new ObjectId(id) }

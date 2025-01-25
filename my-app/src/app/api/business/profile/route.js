@@ -6,7 +6,7 @@ import { verifyAccessToken } from '@/config/jwt';
 export async function GET() {
     try {
         // Get access token from cookies
-        const cookieStore = awaitcookies();
+        const cookieStore = cookies();
         const accessToken = cookieStore.get('accessToken');
 
         if (!accessToken) {
