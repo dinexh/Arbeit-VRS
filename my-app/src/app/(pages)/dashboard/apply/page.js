@@ -66,15 +66,24 @@ function ApplyForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const formData = new FormData(e.target);
-    formData.append('jobId', jobId);
-
-    // If a saved resume is selected, use its ID
-    if (selectedResume) {
-      formData.append('resumeId', selectedResume);
-    }
-
+    
     try {
+      const formData = new FormData(e.target);
+      formData.append('jobId', jobId);
+
+      // If a saved resume is selected, add it to the form data
+      if (selectedResume) {
+        formData.append('resumeId', selectedResume);
+      } else {
+        // Check if a new resume file was uploaded
+        const resumeFile = e.target.resume?.files[0];
+        if (!resumeFile) {
+          toast.error('Please select a resume or upload a new one');
+          return;
+        }
+        formData.append('resume', resumeFile);
+      }
+
       const response = await fetch('/api/applications', {
         method: 'POST',
         body: formData
@@ -85,11 +94,11 @@ function ApplyForm() {
         throw new Error(data.error || 'Failed to submit application');
       }
 
-      toast.success(`Application submitted successfully! Your User ID is: ${data.userId}`);
+      toast.success('Application submitted successfully!');
       router.push('/dashboard?success=true');
     } catch (error) {
       console.error('Error submitting application:', error);
-      toast.error('Failed to submit application. Please try again.');
+      toast.error(error.message || 'Failed to submit application. Please try again.');
     }
   };
 
@@ -236,41 +245,60 @@ function ApplyForm() {
               </div>
               
               <div className="form-group">
-                <label htmlFor="resumeSelect">Select Resume</label>
-                <select 
-                  id="resumeSelect" 
-                  name="resumeSelect"
-                  value={selectedResume || ''}
-                  onChange={(e) => setSelectedResume(e.target.value)}
-                >
-                  <option value="">Upload New Resume</option>
-                  {resumes.map((resume) => (
-                    <option key={resume._id} value={resume._id}>
-                      {resume.metadata.originalName}
-                    </option>
-                  ))}
-                </select>
+                <label>Resume</label>
+                <div className="resume-options">
+                  {resumes.length > 0 && (
+                    <div className="saved-resume-select">
+                      <label htmlFor="resumeSelect">Select from saved resumes:</label>
+                      <select
+                        id="resumeSelect"
+                        value={selectedResume}
+                        onChange={(e) => setSelectedResume(e.target.value)}
+                        className="resume-select"
+                      >
+                        <option value="">Choose a resume</option>
+                        {resumes.map((resume) => (
+                          <option key={resume.id} value={resume.id}>
+                            {resume.originalName || resume.filename}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  
+                  <div className="resume-upload">
+                    <label htmlFor="resume">
+                      {selectedResume ? 'Or upload a different resume:' : 'Upload your resume:'}
+                    </label>
+                    <input
+                      type="file"
+                      id="resume"
+                      name="resume"
+                      accept=".pdf"
+                      onChange={(e) => {
+                        if (e.target.files[0]) {
+                          setSelectedResume(''); // Clear selected resume if uploading new one
+                        }
+                      }}
+                    />
+                    <small>PDF files only</small>
+                  </div>
+                </div>
               </div>
 
-              {!selectedResume && (
-                <div className="form-group">
-                  <label htmlFor="resume">Upload Resume</label>
-                  <input 
-                    type="file" 
-                    id="resume" 
-                    name="resume" 
-                    accept=".pdf,.doc,.docx" 
-                    required={!selectedResume}
-                  />
-                </div>
-              )}
-              
               <div className="form-group">
                 <label htmlFor="coverLetter">Cover Letter (Optional)</label>
-                <textarea id="coverLetter" name="coverLetter" rows="4"></textarea>
+                <textarea
+                  id="coverLetter"
+                  name="coverLetter"
+                  rows="4"
+                  placeholder="Tell us why you're interested in this position..."
+                ></textarea>
               </div>
-              
-              <button type="submit" className="submit-button">Submit Application</button>
+
+              <button type="submit" className="submit-btn">
+                Submit Application
+              </button>
             </form>
           </div>
         </div>

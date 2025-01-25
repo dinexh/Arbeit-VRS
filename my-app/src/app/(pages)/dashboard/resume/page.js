@@ -1,5 +1,6 @@
 'use client';
 import { useState, useRef } from 'react';
+import { Toaster, toast } from 'react-hot-toast';
 import './page.css';
 
 const GenerateResume = () => {
@@ -115,11 +116,74 @@ const GenerateResume = () => {
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    html2pdf().set(opt).from(element).save();
+    try {
+      // Generate PDF blob
+      const pdf = await html2pdf().set(opt).from(element).output('blob');
+      
+      // Create a File object from the blob
+      const file = new File([pdf], opt.filename, { type: 'application/pdf' });
+      
+      // Save to profile if requested
+      const shouldSave = window.confirm('Would you like to save this resume to your profile?');
+      if (shouldSave) {
+        const formData = new FormData();
+        formData.append('resume', file);
+        
+        const response = await fetch('/api/profile/resume', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to save resume to profile');
+        }
+        
+        toast.success('Resume saved to your profile successfully!');
+      }
+      
+      // Download the PDF
+      const url = URL.createObjectURL(pdf);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = opt.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+    } catch (error) {
+      console.error('Error generating/saving resume:', error);
+      toast.error(error.message || 'Failed to generate resume');
+    }
   };
 
   return (
     <div className="resume-generator">
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: '#333',
+            color: '#fff',
+            padding: '16px',
+            borderRadius: '8px',
+            fontSize: '14px'
+          },
+          success: {
+            iconTheme: {
+              primary: '#10B981',
+              secondary: 'white',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#EF4444',
+              secondary: 'white',
+            },
+          },
+        }}
+      />
       <div className="editor-section">
         <button onClick={() => window.location.href = '/dashboard'} className="back-button">
           ← Back to Dashboard

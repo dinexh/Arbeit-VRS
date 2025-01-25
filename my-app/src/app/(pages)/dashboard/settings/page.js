@@ -406,7 +406,7 @@ const ProfilePage = () => {
       toast.success('Resume deleted successfully!');
       
       // Update resumes list
-      setResumes(prev => prev.filter(resume => resume._id !== resumeId));
+      setResumes(prev => prev.filter(resume => resume.id !== resumeId));
     } catch (error) {
       console.error('Error deleting resume:', error);
       toast.error('Failed to delete resume');
@@ -766,11 +766,11 @@ const ProfilePage = () => {
                 {resumes.length > 0 ? (
                   <div className="resumes-list">
                     {resumes.map((resume) => (
-                      <div key={resume._id} className="resume-item">
-                        <span>{resume.filename}</span>
+                      <div key={resume.id} className="resume-item">
+                        <span>{resume.originalName || resume.filename}</span>
                         <div className="resume-actions">
                           <a 
-                            href={`/api/profile/resume/${resume._id}`}
+                            href={`/api/profile/resume/${resume.id}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="view-btn"
@@ -779,7 +779,7 @@ const ProfilePage = () => {
                           </a>
                           <button 
                             className="delete-btn"
-                            onClick={() => handleResumeDelete(resume._id)}
+                            onClick={() => handleResumeDelete(resume.id)}
                           >
                             Delete
                           </button>
